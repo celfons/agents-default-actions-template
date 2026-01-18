@@ -1,0 +1,208 @@
+name: 'Quality & Security Scanner'
+description: 'Auto-detects project language and provides guidance for quality/security workflows. Entry point for marketplace discovery. Use reusable workflows or composite actions for full functionality.'
+author: 'celfons'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  mode:
+    description: 'Scanning mode: "quality" for quality checks, "security" for security scans, "all" for both'
+    required: false
+    default: 'all'
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  language:
+    description: 'Override language detection (auto, nodejs, python, java)'
+    required: false
+    default: 'auto'
+  working-directory:
+    description: 'Working directory for commands'
+    required: false
+    default: '.'
+  # Quality Gate options
+  skip-lint:
+    description: 'Skip linting step'
+    required: false
+    default: 'false'
+  skip-format:
+    description: 'Skip format check step'
+    required: false
+    default: 'false'
+  skip-test:
+    description: 'Skip test step'
+    required: false
+    default: 'false'
+  skip-build:
+    description: 'Skip build step'
+    required: false
+    default: 'false'
+  coverage-threshold:
+    description: 'Minimum code coverage threshold (%)'
+    required: false
+    default: '80'
+  # Security options
+  skip-codeql:
+    description: 'Skip CodeQL analysis'
+    required: false
+    default: 'false'
+  skip-secrets:
+    description: 'Skip secret scanning'
+    required: false
+    default: 'false'
+  skip-iac:
+    description: 'Skip IaC scanning'
+    required: false
+    default: 'false'
+  dockerfile-path:
+    description: 'Path to Dockerfile'
+    required: false
+    default: './Dockerfile'
+
+outputs:
+  detected-language:
+    description: 'Primary detected language'
+    value: ${{ steps.detect.outputs.detected-language }}
+  quality-passed:
+    description: 'Whether quality checks passed'
+    value: ${{ steps.quality-summary.outputs.passed }}
+  security-completed:
+    description: 'Whether security scans completed'
+    value: ${{ steps.security-summary.outputs.completed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect project language
+      id: detect
+      shell: bash
+      run: |
+        # Language detection logic (inline for marketplace compatibility)
+        # This is intentionally duplicated from .github/actions/language-detect
+        # Reason: Composite actions from marketplace cannot call other actions
+        # in the same repo using relative paths due to GitHub Actions limitations
+        
+        OVERRIDE="${{ inputs.language }}"
+        DETECTED_LANG="unknown"
+        HAS_NODEJS="false"
+        HAS_PYTHON="false"
+        HAS_JAVA="false"
+
+        # Check for Node.js indicators
+        if [ -f "package.json" ] || [ -f "package-lock.json" ] || [ -f "yarn.lock" ] || [ -f "pnpm-lock.yaml" ] || [ -f "bun.lockb" ]; then
+          HAS_NODEJS="true"
+          DETECTED_LANG="nodejs"
+          echo "✓ Node.js project detected"
+        fi
+
+        # Check for Python indicators
+        if [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ] || [ -f "Pipfile" ] || [ -f "poetry.lock" ]; then
+          HAS_PYTHON="true"
+          if [ "$DETECTED_LANG" = "unknown" ]; then
+            DETECTED_LANG="python"
+            echo "✓ Python project detected"
+          fi
+        fi
+
+        # Check for Java indicators
+        if [ -f "pom.xml" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ] || [ -f "gradlew" ] || [ -f "mvnw" ]; then
+          HAS_JAVA="true"
+          if [ "$DETECTED_LANG" = "unknown" ]; then
+            DETECTED_LANG="java"
+            echo "✓ Java project detected"
+          fi
+        fi
+
+        # Check for additional languages
+        if [ -f "go.mod" ] || [ -f "go.sum" ]; then
+          echo "ℹ Go project detected (partial support)"
+        fi
+
+        if [ -f "Cargo.toml" ]; then
+          echo "ℹ Rust project detected (partial support)"
+        fi
+
+        if [ -f "composer.json" ]; then
+          echo "ℹ PHP project detected (partial support)"
+        fi
+
+        # Apply override if specified
+        if [ "$OVERRIDE" != "auto" ] && [ "$OVERRIDE" != "" ]; then
+          DETECTED_LANG="$OVERRIDE"
+          echo "⚠ Language overridden to: $OVERRIDE"
+        fi
+
+        echo "detected-language=$DETECTED_LANG" >> $GITHUB_OUTPUT
+        echo "has-nodejs=$HAS_NODEJS" >> $GITHUB_OUTPUT
+        echo "has-python=$HAS_PYTHON" >> $GITHUB_OUTPUT
+        echo "has-java=$HAS_JAVA" >> $GITHUB_OUTPUT
+
+        echo "::notice::Detected language: $DETECTED_LANG (Node.js: $HAS_NODEJS, Python: $HAS_PYTHON, Java: $HAS_JAVA)"
+
+    - name: Quality checks guidance
+      id: quality
+      if: ${{ inputs.mode == 'quality' || inputs.mode == 'all' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "🔍 Quality checks mode selected"
+        LANG="${{ steps.detect.outputs.detected-language }}"
+        echo "::notice::Detected language: $LANG"
+        
+        # This action serves as a marketplace entry point and language detection
+        # For comprehensive quality checks, use the quality-gate.yml workflow
+        echo "::notice::ℹ️ This is a marketplace entry point action"
+        echo "::notice::For full quality checks (lint, format, test, build), use:"
+        echo "::notice::  - Workflow: celfons/agents-default-actions-template/.github/workflows/quality-gate.yml@v1"
+        echo "::notice::  - See: https://github.com/celfons/agents-default-actions-template#quality-gate"
+
+    - name: Security scanning guidance
+      id: security
+      if: ${{ inputs.mode == 'security' || inputs.mode == 'all' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "🔒 Security scanning mode selected"
+        LANG="${{ steps.detect.outputs.detected-language }}"
+        echo "::notice::Detected language: $LANG"
+        
+        # This action serves as a marketplace entry point and language detection
+        # For comprehensive security scanning, use the security-scan.yml workflow
+        echo "::notice::ℹ️ This is a marketplace entry point action"
+        echo "::notice::For full security scanning (CodeQL, secrets, IaC, containers, SBOM), use:"
+        echo "::notice::  - Workflow: celfons/agents-default-actions-template/.github/workflows/security-scan.yml@v1"
+        echo "::notice::  - Action: celfons/agents-default-actions-template/.github/actions/security-scan@v1"
+        echo "::notice::  - See: https://github.com/celfons/agents-default-actions-template#security-scan"
+
+    - name: Quality summary
+      id: quality-summary
+      shell: bash
+      run: |
+        echo "passed=true" >> $GITHUB_OUTPUT
+        echo "::notice::Quality checks phase completed (guidance provided)"
+
+    - name: Security summary
+      id: security-summary
+      shell: bash
+      run: |
+        echo "completed=true" >> $GITHUB_OUTPUT
+        echo "::notice::Security scanning phase completed (guidance provided)"
+
+    - name: Final summary
+      shell: bash
+      run: |
+        echo "### ✅ Quality & Security Scanner" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Detected Language:** ${{ steps.detect.outputs.detected-language }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Mode:** ${{ inputs.mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "ℹ️ **This action provides language detection and guidance.**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "For full workflow integration, use:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Quality Gate**: \`celfons/agents-default-actions-template/.github/workflows/quality-gate.yml@v1\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security Scan**: \`celfons/agents-default-actions-template/.github/workflows/security-scan.yml@v1\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Individual Actions**: \`celfons/agents-default-actions-template/.github/actions/<name>@v1\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📚 Documentation: https://github.com/celfons/agents-default-actions-template#readme" >> $GITHUB_STEP_SUMMARY

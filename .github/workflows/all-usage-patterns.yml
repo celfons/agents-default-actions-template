@@ -1,0 +1,212 @@
+name: All Usage Patterns Example
+
+# This workflow demonstrates all three ways to use this repository:
+# 1. Root action from marketplace
+# 2. Reusable workflows
+# 3. Individual actions via path
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  # ============================================================
+  # PATTERN 1: Using Root Action from Marketplace
+  # ============================================================
+  
+  marketplace-action-all:
+    name: "Pattern 1a: Marketplace Action (All)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      - name: Run Quality & Security Scanner (All)
+        uses: celfons/agents-default-actions-template@v1
+        with:
+          mode: 'all'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: 'auto'
+          coverage-threshold: 80
+
+  marketplace-action-quality:
+    name: "Pattern 1b: Marketplace Action (Quality Only)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      - name: Run Quality Checks Only
+        uses: celfons/agents-default-actions-template@v1
+        with:
+          mode: 'quality'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: 'nodejs'
+          skip-build: false
+
+  marketplace-action-security:
+    name: "Pattern 1c: Marketplace Action (Security Only)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      - name: Run Security Scans Only
+        uses: celfons/agents-default-actions-template@v1
+        with:
+          mode: 'security'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          skip-secrets: false
+          skip-iac: false
+
+  # ============================================================
+  # PATTERN 2: Using Reusable Workflows
+  # ============================================================
+
+  reusable-workflow-quality:
+    name: "Pattern 2a: Reusable Workflow (Quality)"
+    uses: ./.github/workflows/quality-gate.yml
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      language: auto
+      skip-lint: false
+      skip-format: false
+      skip-test: false
+      skip-build: false
+      coverage-threshold: 80
+      timeout-minutes: 30
+
+  reusable-workflow-security:
+    name: "Pattern 2b: Reusable Workflow (Security)"
+    uses: ./.github/workflows/security-scan.yml
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    with:
+      language: auto
+      skip-codeql: false
+      skip-dependency-review: false
+      skip-secrets: false
+      skip-iac: false
+      skip-container: true
+      skip-sbom: false
+      skip-license: false
+      timeout-minutes: 45
+    secrets: inherit
+
+  # ============================================================
+  # PATTERN 3: Using Individual Actions via Path
+  # ============================================================
+
+  individual-actions:
+    name: "Pattern 3: Individual Actions via Path"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      # 3a: Language Detection Action
+      - name: Detect Language
+        id: detect
+        uses: ./.github/actions/language-detect
+        with:
+          override-language: auto
+      
+      - name: Display Detected Language
+        run: |
+          echo "Detected Language: ${{ steps.detect.outputs.detected-language }}"
+          echo "Has Node.js: ${{ steps.detect.outputs.has-nodejs }}"
+          echo "Has Python: ${{ steps.detect.outputs.has-python }}"
+          echo "Has Java: ${{ steps.detect.outputs.has-java }}"
+      
+      # 3b: Security Scan Action
+      - name: Run Security Scan
+        uses: ./.github/actions/security-scan
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: ${{ steps.detect.outputs.detected-language }}
+          working-directory: '.'
+          skip-codeql: false
+          skip-secrets: false
+          skip-iac: false
+
+  # ============================================================
+  # PATTERN 4: Remote Path Reference (for external repos)
+  # ============================================================
+
+  remote-path-reference:
+    name: "Pattern 4: Remote Path Reference"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      # Use language detection from remote repository
+      - name: Detect Language (Remote)
+        id: detect-remote
+        uses: celfons/agents-default-actions-template/.github/actions/language-detect@v1
+        with:
+          override-language: auto
+      
+      - name: Display Result
+        run: |
+          echo "Language detected remotely: ${{ steps.detect-remote.outputs.detected-language }}"
+
+  # ============================================================
+  # PATTERN 5: Custom Combination
+  # ============================================================
+
+  custom-combination:
+    name: "Pattern 5: Custom Workflow Combination"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      # Step 1: Detect language
+      - name: Auto-detect project language
+        id: lang
+        uses: ./.github/actions/language-detect
+      
+      # Step 2: Run quality checks if Node.js
+      - name: Quality checks for Node.js
+        if: steps.lang.outputs.has-nodejs == 'true'
+        uses: celfons/agents-default-actions-template@v1
+        with:
+          mode: quality
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: nodejs
+          skip-build: true
+      
+      # Step 3: Run security scans
+      - name: Security scanning
+        uses: ./.github/actions/security-scan
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: ${{ steps.lang.outputs.detected-language }}
+          skip-codeql: false
+      
+      # Step 4: Custom step based on language
+      - name: Custom processing
+        run: |
+          echo "Processing completed for ${{ steps.lang.outputs.detected-language }}"
+          echo "This shows how you can mix and match different patterns"

@@ -45,9 +45,38 @@ Fornecer workflows reutilizáveis (`workflow_call`) e composite actions que impl
 
 ## 🚀 Quick Start
 
-### 1. Instalação
+### Opção 1: Usar Action Publicada no Marketplace
 
-Copie os workflows para seu repositório:
+Use a action diretamente do GitHub Marketplace para **detecção de linguagem e orientação**:
+
+> **💡 Nota**: Esta action do marketplace fornece detecção automática de linguagem e orientação sobre qual workflow usar. Para funcionalidade completa (lint, test, build, security scans), use as Opções 2 ou 3 abaixo.
+
+> **⚠️ Antes da publicação**: Use `@main` no lugar de `@v1` até que a primeira release seja publicada no marketplace.
+
+```yaml
+name: Language Detection
+
+on: [push, pull_request]
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Detect Project Language
+        uses: celfons/agents-default-actions-template@v1  # ou @main antes da publicação
+        with:
+          mode: 'all'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: 'auto'
+```
+
+A action exibirá a linguagem detectada e fornecerá links para os workflows completos.
+
+### Opção 2: Usar Workflows Reutilizáveis (Recomendado para CI/CD Completo)
+
+Para controle mais granular, copie os workflows para seu repositório:
 
 ```bash
 # Copie a estrutura de .github
@@ -56,8 +85,6 @@ cp -r .github /path/to/your/repo/
 # Ou adicione como submódulo
 git submodule add https://github.com/celfons/agents-default-actions-template .github/templates
 ```
-
-### 2. Uso Básico
 
 Crie `.github/workflows/ci.yml` no seu repositório:
 
@@ -92,10 +119,53 @@ jobs:
     secrets: inherit
 ```
 
-### 3. Customização
+### Opção 3: Usar Actions Individuais via Path
 
-#### Node.js Project
+Você também pode usar as composite actions individuais diretamente via path:
 
+```yaml
+name: Custom Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Detectar linguagem do projeto
+      - uses: celfons/agents-default-actions-template/.github/actions/language-detect@v1
+        id: detect
+      
+      - run: echo "Detected language: ${{ steps.detect.outputs.detected-language }}"
+  
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Scanner de segurança consolidado
+      - uses: celfons/agents-default-actions-template/.github/actions/security-scan@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: auto
+```
+
+## 🎨 Exemplos de Uso
+
+### Node.js Project
+
+Usando a action do marketplace:
+```yaml
+- uses: celfons/agents-default-actions-template@v1
+  with:
+    mode: quality
+    language: nodejs
+    coverage-threshold: 90
+```
+
+Ou usando workflow reutilizável:
 ```yaml
 jobs:
   quality:
@@ -108,8 +178,19 @@ jobs:
       coverage-threshold: 90
 ```
 
-#### Python Project
+### Python Project
 
+Usando a action do marketplace:
+```yaml
+- uses: celfons/agents-default-actions-template@v1
+  with:
+    mode: quality
+    language: python
+    coverage-threshold: 85
+    working-directory: './src'
+```
+
+Ou usando workflow reutilizável:
 ```yaml
 jobs:
   quality:
@@ -120,8 +201,17 @@ jobs:
       working-directory: './src'
 ```
 
-#### Java Project
+### Java Project
 
+Usando a action do marketplace:
+```yaml
+- uses: celfons/agents-default-actions-template@v1
+  with:
+    mode: quality
+    language: java
+```
+
+Ou usando workflow reutilizável:
 ```yaml
 jobs:
   quality:
@@ -131,7 +221,7 @@ jobs:
       timeout-minutes: 45
 ```
 
-#### Monorepo
+### Monorepo
 
 ```yaml
 jobs:
@@ -148,9 +238,48 @@ jobs:
       working-directory: './backend'
 ```
 
-## 📋 Workflows Disponíveis
+## 📋 Recursos Disponíveis
 
-### Quality Gate (`quality-gate.yml`)
+### 🎯 Action Principal (Marketplace)
+
+A action principal (`action.yml`) está na raiz do repositório e pode ser publicada no GitHub Marketplace. Ela serve como ponto de entrada consolidado para todas as funcionalidades.
+
+**Uso via Marketplace:**
+```yaml
+- uses: celfons/agents-default-actions-template@v1
+  with:
+    mode: 'all'  # quality, security, ou all
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    language: 'auto'
+```
+
+**Inputs Principais**:
+| Input | Descrição | Default |
+|-------|-----------|---------|
+| `mode` | Modo de scanning: quality, security, ou all | `all` |
+| `github-token` | Token do GitHub | obrigatório |
+| `language` | Linguagem (auto, nodejs, python, java) | `auto` |
+| `working-directory` | Diretório de trabalho | `.` |
+| `coverage-threshold` | Cobertura mínima (%) | `80` |
+| `skip-lint` | Pular lint | `false` |
+| `skip-format` | Pular format check | `false` |
+| `skip-test` | Pular testes | `false` |
+| `skip-build` | Pular build | `false` |
+| `skip-codeql` | Pular CodeQL | `false` |
+| `skip-secrets` | Pular secret scanning | `false` |
+| `skip-iac` | Pular IaC scanning | `false` |
+| `dockerfile-path` | Caminho do Dockerfile | `./Dockerfile` |
+
+**Outputs**:
+| Output | Descrição |
+|--------|-----------|
+| `detected-language` | Linguagem detectada |
+| `quality-passed` | Se checks de qualidade passaram |
+| `security-completed` | Se scans de segurança completaram |
+
+### 🔄 Workflows Reutilizáveis
+
+#### Quality Gate (`quality-gate.yml`)
 
 Pipeline de qualidade com auto-detecção de linguagem.
 
@@ -173,7 +302,7 @@ Pipeline de qualidade com auto-detecção de linguagem.
 | `working-directory` | Diretório de trabalho | `.` |
 | `timeout-minutes` | Timeout do job | `30` |
 
-### Security Scan (`security-scan.yml`)
+#### Security Scan (`security-scan.yml`)
 
 Pipeline de segurança completo.
 
@@ -200,14 +329,29 @@ Pipeline de segurança completo.
 | `dockerfile-path` | Caminho do Dockerfile | `./Dockerfile` |
 | `timeout-minutes` | Timeout do job | `45` |
 
-## 🧩 Composite Actions
+## 🧩 Composite Actions (Uso via Path)
 
-### Language Detect (`language-detect`)
+As actions em subpastas podem ser usadas diretamente via path reference:
+
+### Language Detect
+
+**Path**: `.github/actions/language-detect`
 
 Detecta automaticamente a linguagem do projeto.
 
+**Uso Local (após clonar o repositório):**
 ```yaml
 - uses: ./.github/actions/language-detect
+  id: detect
+  with:
+    override-language: auto
+
+- run: echo "Language: ${{ steps.detect.outputs.detected-language }}"
+```
+
+**Uso Remoto (via path do GitHub):**
+```yaml
+- uses: celfons/agents-default-actions-template/.github/actions/language-detect@v1
   id: detect
   with:
     override-language: auto
@@ -221,10 +365,13 @@ Detecta automaticamente a linguagem do projeto.
 - `has-python` - Tem Python?
 - `has-java` - Tem Java?
 
-### Security Scan (`security-scan`)
+### Security Scan
 
-Action placeholder para varredura consolidada.
+**Path**: `.github/actions/security-scan`
 
+Action consolidada para varredura de segurança.
+
+**Uso Local (após clonar o repositório):**
 ```yaml
 - uses: ./.github/actions/security-scan
   with:
@@ -232,11 +379,81 @@ Action placeholder para varredura consolidada.
     language: auto
 ```
 
+**Uso Remoto (via path do GitHub):**
+```yaml
+- uses: celfons/agents-default-actions-template/.github/actions/security-scan@v1
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    language: auto
+    working-directory: '.'
+```
+
+**Inputs**:
+| Input | Descrição | Default |
+|-------|-----------|---------|
+| `github-token` | Token do GitHub | obrigatório |
+| `language` | Linguagem para análise | `auto` |
+| `working-directory` | Diretório de trabalho | `.` |
+| `dockerfile-path` | Caminho do Dockerfile | `./Dockerfile` |
+| `skip-codeql` | Pular CodeQL | `false` |
+| `skip-secrets` | Pular secret scanning | `false` |
+| `skip-iac` | Pular IaC scanning | `false` |
+
+**Outputs**:
+| Output | Descrição |
+|--------|-----------|
+| `scan-completed` | Se scans completaram |
+| `vulnerabilities-found` | Se vulnerabilidades foram encontradas |
+
 ## 📚 Documentação
 
 - **[agents.md](docs/agents.md)**: Guia completo de configuração dos workflows
 - **[skills.md](docs/skills.md)**: Referência de skills e capacidades
 - **[example-usage.yml](.github/workflows/example-usage.yml)**: Exemplo de uso
+
+## 📦 Publicação no GitHub Marketplace
+
+Este repositório está estruturado para permitir publicação no GitHub Actions Marketplace:
+
+### ✅ Estrutura para Marketplace
+
+1. **Action Principal (Root)**: O arquivo `action.yml` na raiz permite publicação no marketplace
+2. **Actions em Subpastas**: As actions em `.github/actions/*` podem ser usadas via path reference
+3. **Workflows Reutilizáveis**: Os workflows em `.github/workflows/*` podem ser usados via `workflow_call`
+
+### 🚀 Como Publicar no Marketplace
+
+Para publicar esta action no GitHub Marketplace:
+
+1. **Criar Release com Tag**: Crie uma release no GitHub com uma tag (ex: `v1.0.0`)
+   ```bash
+   git tag -a v1.0.0 -m "Release v1.0.0"
+   git push origin v1.0.0
+   ```
+
+2. **Publicar no Marketplace**: No GitHub, vá em Releases → escolha a release → marque "Publish this Action to the GitHub Marketplace"
+
+3. **Manter Tags Móveis**: É uma boa prática manter tags móveis como `v1` apontando para a última versão estável:
+   ```bash
+   git tag -fa v1 -m "Update v1 to v1.0.0"
+   git push origin v1 --force
+   ```
+
+### 📝 Recomendações
+
+- ✅ **Action Root**: Serve como ponto de entrada único para o marketplace
+- ✅ **Path Reference**: Actions em subpastas acessíveis via `owner/repo/.github/actions/name@ref`
+- ✅ **Workflows**: Workflows reutilizáveis acessíveis via `owner/repo/.github/workflows/name.yml@ref`
+- ✅ **Versioning**: Use semantic versioning (v1.0.0, v1.1.0, etc.)
+- ✅ **Branding**: Configurado com ícone e cor no `action.yml`
+
+### 🔗 Formas de Uso
+
+| Método | Caminho | Publicável no Marketplace |
+|--------|---------|---------------------------|
+| Action Root | `owner/repo@v1` | ✅ Sim |
+| Action Subpasta | `owner/repo/.github/actions/name@v1` | ❌ Não (mas usável via path) |
+| Workflow Reutilizável | `owner/repo/.github/workflows/name.yml@v1` | ❌ Não (mas usável via workflow_call) |
 
 ## 🔧 Requisitos
 
