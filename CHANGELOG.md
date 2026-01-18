@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - Marketplace Publishing Support
+
+#### Root Action for Marketplace
+- **Root action.yml** - Primary composite action at repository root
+  - Enables GitHub Marketplace publishing
+  - Provides unified interface for quality and security scanning
+  - Supports three modes: `quality`, `security`, `all`
+  - Auto-detects project language (Node.js, Python, Java)
+  - Delegates to existing sub-actions for functionality
+  - Comprehensive inputs for both quality and security options
+  - Outputs: detected-language, quality-passed, security-completed
+  - Branding: shield icon with blue color
+  - ~130 lines of marketplace-ready action definition
+
+#### New Example Workflows
+- **All Usage Patterns Example** (`all-usage-patterns.yml`)
+  - Demonstrates 5 different usage patterns
+  - Pattern 1: Marketplace action (root) with all modes
+  - Pattern 2: Reusable workflows (quality-gate, security-scan)
+  - Pattern 3: Individual actions via local path
+  - Pattern 4: Individual actions via remote path
+  - Pattern 5: Custom combination of patterns
+  - Complete examples for each scenario
+  - ~210 lines of comprehensive examples
+
+#### Documentation Updates
+- **README.md enhancements**
+  - Added "Opção 1: Usar Action Publicada no Marketplace" section
+  - Documented three main usage options
+  - Added marketplace publishing guide
+  - Included path reference documentation
+  - Added comparison table of usage methods
+  - Explained which methods are marketplace-publishable
+  - Updated all examples to show marketplace and path usage
+  - Added semantic versioning recommendations
+
+### Changed
+
+#### Repository Structure
+- Actions in subfolders remain accessible via path reference
+- Root action serves as marketplace entry point
+- All existing workflows remain functional
+- Backwards compatible with existing usage patterns
+
+#### Usage Patterns
+- Three distinct usage patterns now available:
+  1. **Marketplace**: `owner/repo@v1` (publishable)
+  2. **Path Reference**: `owner/repo/.github/actions/name@v1` (usable, not publishable)
+  3. **Workflow Call**: `owner/repo/.github/workflows/name.yml@v1` (usable, not publishable)
+
+### Technical Details
+
+#### Why This Structure?
+- GitHub Marketplace requires `action.yml` at repository root
+- Actions in subfolders cannot be published to marketplace
+- But they CAN be used via path reference from any workflow
+- This structure provides both marketplace publishing AND modular usage
+
+#### Path Reference Support
+- Language detect: `owner/repo/.github/actions/language-detect@v1`
+- Security scan: `owner/repo/.github/actions/security-scan@v1`
+- Works from external repositories
+- Works from local repository (after clone/submodule)
+
 ## [1.0.0] - 2024-01-18
 
 ### Added
