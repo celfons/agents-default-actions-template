@@ -227,7 +227,7 @@ R: Depende do caso:
 R: Crie uma nova tag e release. Atualize a tag móvel (v1) para apontar para a nova versão.
 
 **P: Posso ter múltiplas actions no marketplace?**
-R: Não do mesmo repositório. Cada repositório pode publicar apenas UMA action (a da raiz).
+R: Tecnicamente sim, mas apenas a action na raiz é publicável diretamente. Actions em subpastas precisam ser usadas via path reference (`owner/repo/.github/actions/name@v1`), mas não aparecem como entradas separadas no marketplace.
 
 **P: Como testar antes de publicar?**
-R: Use o workflow `.github/workflows/all-usage-patterns.yml` para testar todos os métodos.
+R: Use o workflow `.github/workflows/all-usage-patterns.yml` para testar. Antes de criar a tag v1, os exemplos que referenciam `@v1` devem usar caminhos relativos ou `@main`.

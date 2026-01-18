@@ -79,6 +79,11 @@ runs:
       id: detect
       shell: bash
       run: |
+        # Language detection logic (inline for marketplace compatibility)
+        # This is intentionally duplicated from .github/actions/language-detect
+        # Reason: Composite actions from marketplace cannot call other actions
+        # in the same repo using relative paths due to GitHub Actions limitations
+        
         OVERRIDE="${{ inputs.language }}"
         DETECTED_LANG="unknown"
         HAS_NODEJS="false"

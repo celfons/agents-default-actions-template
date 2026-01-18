@@ -51,6 +51,8 @@ Use a action diretamente do GitHub Marketplace para **detecção de linguagem e 
 
 > **💡 Nota**: Esta action do marketplace fornece detecção automática de linguagem e orientação sobre qual workflow usar. Para funcionalidade completa (lint, test, build, security scans), use as Opções 2 ou 3 abaixo.
 
+> **⚠️ Antes da publicação**: Use `@main` no lugar de `@v1` até que a primeira release seja publicada no marketplace.
+
 ```yaml
 name: Language Detection
 
@@ -63,7 +65,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Detect Project Language
-        uses: celfons/agents-default-actions-template@v1
+        uses: celfons/agents-default-actions-template@v1  # ou @main antes da publicação
         with:
           mode: 'all'
           github-token: ${{ secrets.GITHUB_TOKEN }}
