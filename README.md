@@ -47,37 +47,32 @@ Fornecer workflows reutilizáveis (`workflow_call`) e composite actions que impl
 
 ### Opção 1: Usar Action Publicada no Marketplace
 
-Use a action diretamente do GitHub Marketplace em qualquer workflow:
+Use a action diretamente do GitHub Marketplace para **detecção de linguagem e orientação**:
+
+> **💡 Nota**: Esta action do marketplace fornece detecção automática de linguagem e orientação sobre qual workflow usar. Para funcionalidade completa (lint, test, build, security scans), use as Opções 2 ou 3 abaixo.
 
 ```yaml
-name: CI/CD Pipeline
+name: Language Detection
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
-
-permissions:
-  contents: read
-  security-events: write
+on: [push, pull_request]
 
 jobs:
-  scan:
+  detect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Quality & Security Scan
+      - name: Detect Project Language
         uses: celfons/agents-default-actions-template@v1
         with:
-          mode: 'all'  # 'quality', 'security', ou 'all'
+          mode: 'all'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          language: 'auto'  # ou nodejs, python, java
-          coverage-threshold: 80
+          language: 'auto'
 ```
 
-### Opção 2: Usar Workflows Reutilizáveis (Recomendado)
+A action exibirá a linguagem detectada e fornecerá links para os workflows completos.
+
+### Opção 2: Usar Workflows Reutilizáveis (Recomendado para CI/CD Completo)
 
 Para controle mais granular, copie os workflows para seu repositório:
 

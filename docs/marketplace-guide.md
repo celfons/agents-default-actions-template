@@ -24,7 +24,7 @@ agents-default-actions-template/
 
 ## 🎯 Formas de Uso
 
-### 1️⃣ Action Root (Marketplace) - RECOMENDADO para usuários externos
+### 1️⃣ Action Root (Marketplace) - Para detecção de linguagem e descoberta
 
 ```yaml
 - uses: celfons/agents-default-actions-template@v1
@@ -33,18 +33,23 @@ agents-default-actions-template/
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Vantagens:**
-- ✅ Publicável no GitHub Marketplace
-- ✅ Fácil descoberta por outros usuários
-- ✅ Versioning simples (`@v1`, `@v1.2.3`)
-- ✅ Uma linha de código
+**O que faz:**
+- ✅ Detecta automaticamente a linguagem do projeto
+- ✅ Fornece orientação sobre quais workflows usar
+- ✅ Exibe resumo no GitHub Actions Summary
+- ✅ Publicável no GitHub Marketplace para fácil descoberta
+
+**Limitações:**
+- ❌ Não executa lint, test, build ou security scans completos
+- ❌ Serve como ponto de entrada e orientação
 
 **Quando usar:**
-- Para usuários que querem uma solução rápida
-- Para projetos que não precisam de customização extrema
-- Para uso em repositórios externos
+- Para descobrir rapidamente a linguagem do projeto
+- Como ponto de entrada para novos usuários
+- Para obter orientação sobre qual workflow usar
+- Para testes e experimentação
 
-### 2️⃣ Workflows Reutilizáveis - RECOMENDADO para controle granular
+### 2️⃣ Workflows Reutilizáveis - RECOMENDADO para CI/CD completo
 
 ```yaml
 jobs:
