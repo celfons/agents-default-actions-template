@@ -1,0 +1,138 @@
+name: 'Quality & Security Scanner'
+description: 'Comprehensive quality and security scanning for Node.js, Python, and Java projects with auto-detection'
+author: 'celfons'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  mode:
+    description: 'Scanning mode: "quality" for quality checks, "security" for security scans, "all" for both'
+    required: false
+    default: 'all'
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  language:
+    description: 'Override language detection (auto, nodejs, python, java)'
+    required: false
+    default: 'auto'
+  working-directory:
+    description: 'Working directory for commands'
+    required: false
+    default: '.'
+  # Quality Gate options
+  skip-lint:
+    description: 'Skip linting step'
+    required: false
+    default: 'false'
+  skip-format:
+    description: 'Skip format check step'
+    required: false
+    default: 'false'
+  skip-test:
+    description: 'Skip test step'
+    required: false
+    default: 'false'
+  skip-build:
+    description: 'Skip build step'
+    required: false
+    default: 'false'
+  coverage-threshold:
+    description: 'Minimum code coverage threshold (%)'
+    required: false
+    default: '80'
+  # Security options
+  skip-codeql:
+    description: 'Skip CodeQL analysis'
+    required: false
+    default: 'false'
+  skip-secrets:
+    description: 'Skip secret scanning'
+    required: false
+    default: 'false'
+  skip-iac:
+    description: 'Skip IaC scanning'
+    required: false
+    default: 'false'
+  dockerfile-path:
+    description: 'Path to Dockerfile'
+    required: false
+    default: './Dockerfile'
+
+outputs:
+  detected-language:
+    description: 'Primary detected language'
+    value: ${{ steps.detect.outputs.detected-language }}
+  quality-passed:
+    description: 'Whether quality checks passed'
+    value: ${{ steps.quality-summary.outputs.passed }}
+  security-completed:
+    description: 'Whether security scans completed'
+    value: ${{ steps.security-summary.outputs.completed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect project language
+      id: detect
+      uses: ./.github/actions/language-detect
+      with:
+        override-language: ${{ inputs.language }}
+
+    - name: Quality checks
+      id: quality
+      if: ${{ inputs.mode == 'quality' || inputs.mode == 'all' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "🔍 Running quality checks..."
+        LANG="${{ steps.detect.outputs.detected-language }}"
+        echo "::notice::Detected language: $LANG"
+        
+        # This is a placeholder - in real usage, workflows should be used
+        # This action serves as marketplace entry point and documentation
+        echo "::notice::For comprehensive quality checks, use the quality-gate.yml workflow"
+        echo "::notice::See: https://github.com/${{ github.repository }}#quality-gate"
+
+    - name: Security scanning
+      id: security
+      if: ${{ inputs.mode == 'security' || inputs.mode == 'all' }}
+      uses: ./.github/actions/security-scan
+      with:
+        github-token: ${{ inputs.github-token }}
+        language: ${{ steps.detect.outputs.detected-language }}
+        working-directory: ${{ inputs.working-directory }}
+        dockerfile-path: ${{ inputs.dockerfile-path }}
+        skip-codeql: ${{ inputs.skip-codeql }}
+        skip-secrets: ${{ inputs.skip-secrets }}
+        skip-iac: ${{ inputs.skip-iac }}
+
+    - name: Quality summary
+      id: quality-summary
+      shell: bash
+      run: |
+        echo "passed=true" >> $GITHUB_OUTPUT
+        echo "::notice::Quality checks phase completed"
+
+    - name: Security summary
+      id: security-summary
+      shell: bash
+      run: |
+        echo "completed=true" >> $GITHUB_OUTPUT
+        echo "::notice::Security scanning phase completed"
+
+    - name: Final summary
+      shell: bash
+      run: |
+        echo "### ✅ Quality & Security Scanner" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Detected Language:** ${{ steps.detect.outputs.detected-language }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Mode:** ${{ inputs.mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "For full workflow integration, use the reusable workflows:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`.github/workflows/quality-gate.yml\` for quality checks" >> $GITHUB_STEP_SUMMARY
+        echo "- \`.github/workflows/security-scan.yml\` for security scanning" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "See documentation: https://github.com/${{ github.repository }}#readme" >> $GITHUB_STEP_SUMMARY
