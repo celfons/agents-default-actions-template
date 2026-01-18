@@ -39,8 +39,8 @@ jobs:
       pull-requests: write
     with:
       language: auto
-      skip-codeql: false
-      skip-dependency-review: false
+      skip-codeql: true  # Skip CodeQL for template repository (no source code)
+      skip-dependency-review: true  # Skip dependency review for template repository
       skip-secrets: false
       skip-iac: false
       skip-container: false
