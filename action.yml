@@ -1,5 +1,5 @@
 name: 'Quality & Security Scanner'
-description: 'Comprehensive quality and security scanning for Node.js, Python, and Java projects with auto-detection'
+description: 'Marketplace entry point for comprehensive scanning. Detects project language and provides access to quality/security workflows. For full functionality, use the reusable workflows or composite actions via path.'
 author: 'celfons'
 
 branding:
@@ -87,14 +87,16 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        echo "🔍 Running quality checks..."
+        echo "🔍 Quality checks mode selected"
         LANG="${{ steps.detect.outputs.detected-language }}"
         echo "::notice::Detected language: $LANG"
         
-        # This is a placeholder - in real usage, workflows should be used
-        # This action serves as marketplace entry point and documentation
-        echo "::notice::For comprehensive quality checks, use the quality-gate.yml workflow"
-        echo "::notice::See: https://github.com/${{ github.repository }}#quality-gate"
+        # This action serves as a marketplace entry point and language detection
+        # For comprehensive quality checks, use the quality-gate.yml workflow
+        echo "::notice::ℹ️ This is a marketplace entry point action"
+        echo "::notice::For full quality checks (lint, format, test, build), use:"
+        echo "::notice::  - Workflow: owner/repo/.github/workflows/quality-gate.yml@v1"
+        echo "::notice::  - See: https://github.com/${{ github.repository }}#quality-gate"
 
     - name: Security scanning
       id: security
