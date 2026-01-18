@@ -70,6 +70,7 @@ jobs:
 
       - name: Detect project language
         id: detect
+        working-directory: ${{ inputs.working-directory }}
         run: |
           DETECTED_LANG="unknown"
           HAS_NODEJS="false"

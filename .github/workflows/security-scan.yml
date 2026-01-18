@@ -84,6 +84,7 @@ jobs:
 
       - name: Detect CodeQL language
         id: detect-lang
+        working-directory: ${{ inputs.working-directory }}
         run: |
           LANG="${{ inputs.language }}"
           if [ "$LANG" = "auto" ]; then
