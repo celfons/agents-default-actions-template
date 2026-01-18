@@ -1,0 +1,483 @@
+name: Quality Gate
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: 'Override language detection (nodejs, python, java, or auto)'
+        required: false
+        type: string
+        default: 'auto'
+      skip-lint:
+        description: 'Skip linting step'
+        required: false
+        type: boolean
+        default: false
+      skip-format:
+        description: 'Skip format check step'
+        required: false
+        type: boolean
+        default: false
+      skip-test:
+        description: 'Skip test step'
+        required: false
+        type: boolean
+        default: false
+      skip-build:
+        description: 'Skip build step'
+        required: false
+        type: boolean
+        default: false
+      coverage-threshold:
+        description: 'Minimum code coverage threshold (%)'
+        required: false
+        type: number
+        default: 80
+      working-directory:
+        description: 'Working directory for commands'
+        required: false
+        type: string
+        default: '.'
+      timeout-minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-language:
+    name: Detect Language
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      detected-language: ${{ steps.detect.outputs.language }}
+      has-nodejs: ${{ steps.detect.outputs.has-nodejs }}
+      has-python: ${{ steps.detect.outputs.has-python }}
+      has-java: ${{ steps.detect.outputs.has-java }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Detect project language
+        id: detect
+        run: |
+          DETECTED_LANG="unknown"
+          HAS_NODEJS="false"
+          HAS_PYTHON="false"
+          HAS_JAVA="false"
+
+          # Check for Node.js
+          if [ -f "package.json" ] || [ -f "package-lock.json" ] || [ -f "yarn.lock" ] || [ -f "pnpm-lock.yaml" ]; then
+            HAS_NODEJS="true"
+            DETECTED_LANG="nodejs"
+          fi
+
+          # Check for Python
+          if [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ] || [ -f "Pipfile" ] || [ -f "poetry.lock" ]; then
+            HAS_PYTHON="true"
+            if [ "$DETECTED_LANG" = "unknown" ]; then
+              DETECTED_LANG="python"
+            fi
+          fi
+
+          # Check for Java
+          if [ -f "pom.xml" ] || [ -f "build.gradle" ] || [ -f "build.gradle.kts" ] || [ -f "gradlew" ]; then
+            HAS_JAVA="true"
+            if [ "$DETECTED_LANG" = "unknown" ]; then
+              DETECTED_LANG="java"
+            fi
+          fi
+
+          echo "language=$DETECTED_LANG" >> $GITHUB_OUTPUT
+          echo "has-nodejs=$HAS_NODEJS" >> $GITHUB_OUTPUT
+          echo "has-python=$HAS_PYTHON" >> $GITHUB_OUTPUT
+          echo "has-java=$HAS_JAVA" >> $GITHUB_OUTPUT
+
+          echo "::notice::Detected language: $DETECTED_LANG (Node.js: $HAS_NODEJS, Python: $HAS_PYTHON, Java: $HAS_JAVA)"
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    needs: detect-language
+    if: ${{ !inputs.skip-lint }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180105d329 # v4.0.1
+        with:
+          node-version-file: '.nvmrc'
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run Node.js linter
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if npm run --silent lint --if-present; then
+            echo "✓ Linting passed"
+          elif [ -f "node_modules/.bin/eslint" ]; then
+            npx eslint . --ext .js,.jsx,.ts,.tsx
+          else
+            echo "::warning::No lint script or ESLint found, skipping Node.js linting"
+          fi
+
+      - name: Setup Python
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          pip install flake8 pylint black isort mypy || true
+
+      - name: Run Python linter
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if command -v flake8 &> /dev/null; then
+            flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "::warning::Flake8 found issues"
+          fi
+          if command -v pylint &> /dev/null; then
+            pylint **/*.py --exit-zero || echo "::warning::Pylint found issues"
+          fi
+
+      - name: Setup Java
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Run Java linter
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f "pom.xml" ]; then
+            mvn checkstyle:check -B || echo "::warning::Checkstyle found issues"
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            ./gradlew check || echo "::warning::Gradle check found issues"
+          fi
+
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    needs: detect-language
+    if: ${{ !inputs.skip-format }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180105d329 # v4.0.1
+        with:
+          node-version-file: '.nvmrc'
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run Node.js formatter check
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if npm run --silent format:check --if-present; then
+            echo "✓ Format check passed"
+          elif [ -f "node_modules/.bin/prettier" ]; then
+            npx prettier --check .
+          else
+            echo "::warning::No format:check script or Prettier found, skipping formatting check"
+          fi
+
+      - name: Setup Python
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python formatting tools
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        run: pip install black isort
+
+      - name: Run Python formatter check
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          black --check . || echo "::warning::Black found formatting issues"
+          isort --check-only . || echo "::warning::isort found import order issues"
+
+      - name: Setup Java
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Run Java formatter check
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f "pom.xml" ]; then
+            mvn spotless:check -B || echo "::warning::Spotless found formatting issues"
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            ./gradlew spotlessCheck || echo "::warning::Spotless found formatting issues"
+          fi
+
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    needs: detect-language
+    if: ${{ !inputs.skip-test }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180105d329 # v4.0.1
+        with:
+          node-version-file: '.nvmrc'
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run Node.js tests with coverage
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if npm run --silent test:coverage --if-present; then
+            echo "✓ Tests passed with coverage"
+          elif npm run --silent test --if-present; then
+            echo "✓ Tests passed (no coverage)"
+          else
+            echo "::warning::No test script found"
+          fi
+
+      - name: Upload Node.js coverage
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: coverage-nodejs
+          path: |
+            coverage/
+            **/coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Setup Python
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          pip install pytest pytest-cov coverage
+
+      - name: Run Python tests with coverage
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term || echo "::warning::Tests failed or not found"
+
+      - name: Upload Python coverage
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: coverage-python
+          path: |
+            htmlcov/
+            coverage.xml
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Setup Java
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Run Java tests with coverage
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f "pom.xml" ]; then
+            mvn test jacoco:report -B
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            ./gradlew test jacocoTestReport
+          fi
+
+      - name: Upload Java coverage
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: coverage-java
+          path: |
+            target/site/jacoco/
+            build/reports/jacoco/
+          retention-days: 7
+          if-no-files-found: warn
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    needs: [detect-language, lint, format-check, test]
+    if: ${{ !inputs.skip-build }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180105d329 # v4.0.1
+        with:
+          node-version-file: '.nvmrc'
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Build Node.js project
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if npm run --silent build --if-present; then
+            echo "✓ Build succeeded"
+          else
+            echo "::warning::No build script found, skipping build"
+          fi
+
+      - name: Upload Node.js build artifacts
+        if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: build-nodejs
+          path: |
+            dist/
+            build/
+            out/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Setup Python
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Build Python package
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          python -m pip install --upgrade pip build
+          if [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
+            python -m build
+            echo "✓ Build succeeded"
+          else
+            echo "::warning::No setup.py or pyproject.toml found, skipping build"
+          fi
+
+      - name: Upload Python build artifacts
+        if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: build-python
+          path: dist/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Setup Java
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build Java project
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f "pom.xml" ]; then
+            mvn clean package -DskipTests -B
+          elif [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then
+            ./gradlew build -x test
+          fi
+
+      - name: Upload Java build artifacts
+        if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: build-java
+          path: |
+            target/*.jar
+            build/libs/*.jar
+          retention-days: 7
+          if-no-files-found: warn

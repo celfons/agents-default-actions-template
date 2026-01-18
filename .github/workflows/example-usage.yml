@@ -1,0 +1,48 @@
+name: CI/CD Pipeline Example
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Quality checks with auto language detection
+  quality:
+    name: Quality Gate
+    uses: ./.github/workflows/quality-gate.yml
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      language: auto  # Auto-detect language, or specify: nodejs, python, java
+      skip-lint: false
+      skip-format: false
+      skip-test: false
+      skip-build: false
+      coverage-threshold: 80
+      timeout-minutes: 30
+
+  # Security scanning
+  security:
+    name: Security Scan
+    uses: ./.github/workflows/security-scan.yml
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    with:
+      language: auto
+      skip-codeql: false
+      skip-dependency-review: false
+      skip-secrets: false
+      skip-iac: false
+      skip-container: false
+      skip-sbom: false
+      skip-license: false
+      timeout-minutes: 45
+    secrets: inherit
