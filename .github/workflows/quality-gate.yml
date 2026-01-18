@@ -70,6 +70,7 @@ jobs:
 
       - name: Detect project language
         id: detect
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           DETECTED_LANG="unknown"
@@ -130,11 +131,13 @@ jobs:
 
       - name: Install Node.js dependencies
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: npm ci --prefer-offline --no-audit
 
       - name: Run Node.js linter
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if npm run --silent lint --if-present; then
@@ -154,6 +157,7 @@ jobs:
 
       - name: Install Python dependencies
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           python -m pip install --upgrade pip
@@ -163,6 +167,7 @@ jobs:
 
       - name: Run Python linter
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if command -v flake8 &> /dev/null; then
@@ -182,6 +187,7 @@ jobs:
 
       - name: Run Java linter
         if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pom.xml" ]; then
@@ -214,11 +220,13 @@ jobs:
 
       - name: Install Node.js dependencies
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: npm ci --prefer-offline --no-audit
 
       - name: Run Node.js formatter check
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if npm run --silent format:check --if-present; then
@@ -242,6 +250,7 @@ jobs:
 
       - name: Run Python formatter check
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           black --check . || echo "::warning::Black found formatting issues"
@@ -256,6 +265,7 @@ jobs:
 
       - name: Run Java formatter check
         if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pom.xml" ]; then
@@ -289,11 +299,13 @@ jobs:
 
       - name: Install Node.js dependencies
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: npm ci --prefer-offline --no-audit
 
       - name: Run Node.js tests with coverage
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if npm run --silent test:coverage --if-present; then
@@ -324,6 +336,7 @@ jobs:
 
       - name: Install Python dependencies
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           python -m pip install --upgrade pip
@@ -333,6 +346,7 @@ jobs:
 
       - name: Run Python tests with coverage
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term || echo "::warning::Tests failed or not found"
@@ -358,6 +372,7 @@ jobs:
 
       - name: Run Java tests with coverage
         if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pom.xml" ]; then
@@ -401,11 +416,13 @@ jobs:
 
       - name: Install Node.js dependencies
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: npm ci --prefer-offline --no-audit
 
       - name: Build Node.js project
         if: ${{ (inputs.language == 'nodejs' || needs.detect-language.outputs.has-nodejs == 'true') && inputs.language != 'python' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if npm run --silent build --if-present; then
@@ -435,6 +452,7 @@ jobs:
 
       - name: Build Python package
         if: ${{ (inputs.language == 'python' || needs.detect-language.outputs.has-python == 'true') && inputs.language != 'nodejs' && inputs.language != 'java' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           python -m pip install --upgrade pip build
@@ -464,6 +482,7 @@ jobs:
 
       - name: Build Java project
         if: ${{ (inputs.language == 'java' || needs.detect-language.outputs.has-java == 'true') && inputs.language != 'nodejs' && inputs.language != 'python' }}
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pom.xml" ]; then

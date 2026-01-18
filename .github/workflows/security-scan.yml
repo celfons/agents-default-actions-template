@@ -84,6 +84,7 @@ jobs:
 
       - name: Detect CodeQL language
         id: detect-lang
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           LANG="${{ inputs.language }}"
@@ -305,6 +306,7 @@ jobs:
 
       - name: Check Node.js licenses
         if: hashFiles('package.json') != ''
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           npm install -g license-checker
@@ -320,6 +322,7 @@ jobs:
 
       - name: Check Python licenses
         if: hashFiles('requirements.txt', 'setup.py', 'pyproject.toml') != ''
+        shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
           pip install pip-licenses
