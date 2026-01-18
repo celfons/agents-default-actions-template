@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       
       - name: Run Quality & Security Scanner (All)
-        uses: celfons/agents-default-actions-template@v1
+        uses: celfons/agents-default-actions-template@main
         with:
           mode: 'all'
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       
       - name: Run Quality Checks Only
-        uses: celfons/agents-default-actions-template@v1
+        uses: celfons/agents-default-actions-template@main
         with:
           mode: 'quality'
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       
       - name: Run Security Scans Only
-        uses: celfons/agents-default-actions-template@v1
+        uses: celfons/agents-default-actions-template@main
         with:
           mode: 'security'
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -161,7 +161,7 @@ jobs:
       # Use language detection from remote repository
       - name: Detect Language (Remote)
         id: detect-remote
-        uses: celfons/agents-default-actions-template/.github/actions/language-detect@v1
+        uses: celfons/agents-default-actions-template/.github/actions/language-detect@main
         with:
           override-language: auto
       
@@ -190,7 +190,7 @@ jobs:
       # Step 2: Run quality checks if Node.js
       - name: Quality checks for Node.js
         if: steps.lang.outputs.has-nodejs == 'true'
-        uses: celfons/agents-default-actions-template@v1
+        uses: celfons/agents-default-actions-template@main
         with:
           mode: quality
           github-token: ${{ secrets.GITHUB_TOKEN }}
