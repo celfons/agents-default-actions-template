@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+venv/
+env/
+.env
+target/
+build/
+dist/
+out/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+*.lcov
+.nyc_output/
+
+# Test artifacts
+.pytest_cache/
+.jest/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+*.jar
+*.war
+*.ear
+*.class
+*.pyc
+__pycache__/
+
+# SBOM and reports
+sbom.*.json
+*-licenses.json
+licenses.json
