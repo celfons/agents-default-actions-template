@@ -1,5 +1,5 @@
 name: 'Quality & Security Scanner'
-description: 'Auto-detects project language and provides guidance for quality/security workflows. Entry point for marketplace discovery. Use reusable workflows or composite actions for full functionality.'
+description: 'Auto-detects project language and suggests quality/security workflows. Enables discovery of reusable workflows or actions.'
 author: 'celfons'
 
 branding:
